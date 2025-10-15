@@ -1,0 +1,149 @@
+
+# Configuración de redes personalizadas
+networks:
+  app-network:
+    driver: bridge
+    name: bookstore-network
+
+services:
+  # Base de datos PostgreSQL
+  db:
+    image: postgres:16-alpine
+    container_name: bookstore_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bookstore
+    ports:
+      - "5433:5432"   # Puerto mapeado para acceso desde el host
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bookstore"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # Redis para sesiones y colas
+  redis:
+    image: redis:7-alpine
+    container_name: bookstore-redis
+    command: redis-server --requirepass your-redis-password --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "your-redis-password", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # Interfaz web para PostgreSQL
+  adminer:
+    image: adminer:latest
+    container_name: bookstore-adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    depends_on:
+      - db
+    networks:
+      - app-network
+
+  # Aplicación principal
+  app:
+    build:
+      context: .
+      target: development
+      args:
+        NODE_ENV: development
+    container_name: bookstore-app
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+    ports:
+      - "5173:5173"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/bookstore
+      - SHADOW_DATABASE_URL=postgresql://postgres:postgres@db:5432/bookstore_shadow
+      - REDIS_URL=redis://:your-redis-password@redis:6379
+      - SESSION_SECRET=your-secret-key-change-this
+      - NODE_OPTIONS=--max-old-space-size=2048
+      - UPLOAD_DIR=/data/uploads
+      - EXTRACTION_DIR=/data/extractions
+      - MAX_UPLOAD_MB=20
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+      - /usr/src/app/.svelte-kit
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Worker para tareas en segundo plano (opcional)
+  worker:
+    build:
+      context: .
+      target: development
+    container_name: bookstore-worker
+    command: ["npm", "run", "worker:dev"]
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/bookstore
+      - REDIS_URL=redis://:your-redis-password@redis:6379
+      - UPLOAD_DIR=/data/uploads
+      - EXTRACTION_DIR=/data/extractions
+      - NODE_OPTIONS=--max-old-space-size=1536
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+      - data-uploads:/data/uploads
+      - data-extractions:/data/extractions
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Volúmenes para persistencia de datos
+volumes:
+  postgres_data:
+    name: bookstore-postgres-data
+  redis_data:
+    name: bookstore-redis-data
+  data-uploads:
+    name: bookstore-uploads
+  data-extractions:
+    name: bookstore-extractions
