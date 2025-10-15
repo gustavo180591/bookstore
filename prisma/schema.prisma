@@ -26,9 +26,20 @@ model User {
   institutions     InstitutionMember[]
   orders           Order[]
   payments         Payment[]
+  sessions         Session[]
 
   @@index([email])
   @@index([documentNumber])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Institution {

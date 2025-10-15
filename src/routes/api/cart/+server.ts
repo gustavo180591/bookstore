@@ -46,7 +46,7 @@ function calculateTotals(items: Array<{ product: { price: Decimal }; quantity: n
  */
 export const GET: RequestHandler = async ({ locals }) => {
   try {
-    const userId = (locals as any).user?.id;
+    const userId = locals.user?.id;
 
     if (!userId) {
       return json({
@@ -75,7 +75,7 @@ export const GET: RequestHandler = async ({ locals }) => {
       success: true,
       data: {
         id: cart.id,
-        items: cart.items.map((item: any) => ({
+        items: cart.items.map((item) => ({
           id: item.id,
           productId: item.productId,
           quantity: item.quantity,
@@ -109,7 +109,7 @@ export const GET: RequestHandler = async ({ locals }) => {
  */
 export const POST: RequestHandler = async ({ request, locals }) => {
   try {
-    const userId = (locals as any).user?.id;
+    const userId = locals.user?.id;
 
     if (!userId) {
       return json({
@@ -234,7 +234,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
  */
 export const DELETE: RequestHandler = async ({ locals }) => {
   try {
-    const userId = (locals as any).user?.id;
+    const userId = locals.user?.id;
 
     if (!userId) {
       return json({

@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
  */
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
   try {
-    const userId = (locals as any).user?.id;
+    const userId = locals.user?.id;
 
     if (!userId) {
       return json({
@@ -126,7 +126,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
  */
 export const DELETE: RequestHandler = async ({ params, locals }) => {
   try {
-    const userId = (locals as any).user?.id;
+    const userId = locals.user?.id;
 
     if (!userId) {
       return json({

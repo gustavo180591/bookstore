@@ -1,15 +1,14 @@
 import { json } from '@sveltejs/kit';
 import { PrismaClient } from '@prisma/client';
-// import jwt from 'jsonwebtoken'; // Temporalmente deshabilitado por problemas de ES modules
+import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 /**
  * POST /api/auth/login
- * Autentica un usuario y devuelve información básica
- * Nota: Versión simplificada sin JWT por problemas de módulos
+ * Autentica un usuario y crea una sesión
  */
-export async function POST({ request }) {
+export async function POST({ request, cookies }) {
   try {
     const { email, password } = await request.json();
 
@@ -21,40 +20,59 @@ export async function POST({ request }) {
       }, { status: 400 });
     }
 
-    // Buscar usuario por email
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: {
-        addresses: true,
-        carts: true,
-        orders: true
+    // Buscar usuario por email - simplified for debugging
+    const users = await prisma.user.findMany({
+      where: { email }
+    });
+
+    if (users.length === 0) {
+      return json({
+        success: false,
+        error: 'Credenciales inválidas'
+      }, { status: 401 });
+    }
+
+    const user = users[0];
+
+    // Verificar contraseña usando bcrypt
+    const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+
+    if (!isValidPassword) {
+      return json({
+        success: false,
+        error: 'Credenciales inválidas'
+      }, { status: 401 });
+    }
+
+    // Crear sesión (expira en 24 horas)
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24);
+
+    const session = await prisma.session.create({
+      data: {
+        userId: user.id,
+        expiresAt
       }
     });
 
-    if (!user) {
-      return json({
-        success: false,
-        error: 'Credenciales inválidas'
-      }, { status: 401 });
-    }
-
-    // Verificación simple de contraseña para desarrollo
-    if (password !== 'password123') {
-      return json({
-        success: false,
-        error: 'Credenciales inválidas'
-      }, { status: 401 });
-    }
+    // Configurar cookie de sesión
+    cookies.set('sessionId', session.id, {
+      path: '/',
+      httpOnly: true,
+      secure: false, // Cambiar a true en producción con HTTPS
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 // 24 horas en segundos
+    });
 
     // Remover información sensible antes de devolver
-    const { passwordHash: _, ...userWithoutPassword } = user;
+    const userWithoutPassword = { ...user };
+    delete userWithoutPassword.passwordHash;
 
     return json({
       success: true,
       message: 'Login exitoso',
       data: {
         user: userWithoutPassword
-        // TODO: Agregar token JWT cuando se resuelvan problemas de módulos
       }
     });
 
@@ -63,7 +81,8 @@ export async function POST({ request }) {
     return json({
       success: false,
       error: 'Error interno del servidor',
-      message: error instanceof Error ? error.message : 'Error desconocido'
+      message: error instanceof Error ? error.message : 'Error desconocido',
+      stack: error instanceof Error ? error.stack : undefined
     }, { status: 500 });
   }
 }
