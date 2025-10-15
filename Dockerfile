@@ -3,6 +3,9 @@ FROM node:20-alpine AS development
 
 WORKDIR /usr/src/app
 
+# Instalar herramientas de compilación para bcrypt
+RUN apk add --no-cache python3 make g++
+
 # Instalar dependencias de desarrollo
 COPY package.json package-lock.json* ./
 RUN npm ci --legacy-peer-deps

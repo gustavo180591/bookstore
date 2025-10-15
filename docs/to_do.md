@@ -1,10 +1,10 @@
 # To-Do Proyecto Bookstore
 
 ## Hoy (P1🔥)
-- [ ] Configurar migraciones iniciales de Prisma — Crear tablas base (User, Product, Order) en PostgreSQL — Owner: Dev Backend — ETA: Hoy — Link: (pendiente)
+- [x] Configurar migraciones iniciales de Prisma — Crear tablas base (User, Product, Order) en PostgreSQL — Owner: Dev Backend — ETA: Hoy — Link: (pendiente)
   - Ejecutar `npx prisma migrate dev --name init` para aplicar schema.
   - Verificar conexión con Docker: `docker-compose logs db`.
-- [ ] Implementar endpoints básicos de API — GET /api/products y POST /api/auth/login — Owner: Dev Backend — ETA: Hoy — Link: (pendiente)
+- [x] Implementar endpoints básicos de API — GET /api/products y POST /api/auth/login — Owner: Dev Backend — ETA: Hoy — Link: (pendiente)
   - Criterios: Respuesta JSON válida, manejo de errores básico.
 
 ## Esta Semana (P2⚡)
