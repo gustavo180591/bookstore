@@ -8,9 +8,11 @@
   - Criterios: Respuesta JSON válida, manejo de errores básico.
 
 ## Esta Semana (P2⚡)
-- [ ] Desarrollar catálogo de productos — Página navegable con filtros (categoría, precio) usando TanStack Query — Owner: Dev Frontend — ETA: 2 días — Link: (pendiente)
+- [x] Desarrollar catálogo de productos — Página navegable con filtros (categoría, precio) usando TanStack Query — Owner: Dev Frontend — ETA: 2 días — Link: (pendiente)
   - Criterios: Listar productos desde API, paginación, búsqueda.
   - Relacionado: Modelo `Product` en schema.prisma.
+- [x] Crear página de inicio atractiva — Hero section, características, productos destacados y footer — Owner: Dev Frontend — ETA: 1 día — Link: (pendiente)
+  - Diseño responsivo, navegación clara al catálogo.
 - [ ] Implementar carrito de compras — Agregar/remover items con reserva de stock 15' — Owner: Dev Frontend — ETA: 3 días — Link: (pendiente)
   - Criterios: Integrar con `Cart` y `CartItem`, expiración automática.
   - Comando útil: `npm run dev` para probar en SvelteKit.
