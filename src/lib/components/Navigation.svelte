@@ -1,6 +1,44 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { cartItemCount } from '$lib/stores/cart';
+  import { goto } from '$app/navigation';
+  import { onMount } from 'svelte';
+  import type { User } from '$lib/types';
+  
+  // Estado de los menús desplegables
+  let isProfileMenuOpen = false;
+  let isUtilsMenuOpen = false;
+  let user: User | null = null;
+  
+  // Verificar si el usuario está autenticado al cargar el componente
+  onMount(async () => {
+    try {
+      const response = await fetch('/api/auth/session');
+      if (response.ok) {
+        user = await response.json();
+      }
+    } catch (error) {
+      console.error('Error al verificar la sesión:', error);
+    }
+  });
+  
+  // Cerrar sesión
+  const handleLogout = async () => {
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        window.location.href = '/';
+      }
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
+  };
   
   const navItems = [
     { name: 'Inicio', href: '/' },
@@ -14,16 +52,56 @@
     return $page.url.pathname === path;
   };
   
-  // Handle keyboard events for accessibility
+  // Manejar eventos de teclado para accesibilidad
   const handleKeyDown = (event: KeyboardEvent, href: string) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       window.location.href = href;
     }
   };
+  
+  // Cerrar menús al hacer clic fuera de ellos
+  const handleClickOutside = (event: MouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (!target.closest('[data-profile-menu]')) {
+      isProfileMenuOpen = false;
+    }
+    if (!target.closest('[data-utils-menu]')) {
+      isUtilsMenuOpen = false;
+    }
+  };
+  
+  // Handle click outside for mobile menu
+  let cleanup: (() => void) | null = null;
+  
+  $: {
+    // Clean up previous listener if it exists
+    if (cleanup) {
+      cleanup();
+      cleanup = null;
+    }
+    
+    if (isProfileMenuOpen || isUtilsMenuOpen) {
+      const handleDocumentClick = (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        if (!target.closest('[data-navigation]')) {
+          isProfileMenuOpen = false;
+          isUtilsMenuOpen = false;
+        }
+      };
+      
+      document.addEventListener('click', handleDocumentClick);
+      
+      // Store cleanup function
+      cleanup = () => {
+        document.removeEventListener('click', handleDocumentClick);
+      };
+    }
+  }
 </script>
 
 <header class="bg-white shadow-sm">
+  <div class="relative" data-navigation>
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex justify-between h-16">
       <div class="flex">
@@ -32,51 +110,187 @@
         </div>
         <nav class="hidden sm:ml-6 sm:flex sm:space-x-8">
           {#each navItems as item}
-            <a
-              href={item.href}
-              on:keydown={(e) => handleKeyDown(e, item.href)}
-              class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200 {isActive(item.href) 
-                ? 'border-indigo-500 text-gray-900' 
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}"
-              tabindex="0"
-              aria-current={isActive(item.href) ? 'page' : undefined}
-            >
-              {item.name}
-              {#if item.href === '/lista-utiles'}
-                <span class="ml-1 px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800">
-                  Nuevo
-                </span>
-              {/if}
-            </a>
+            {#if item.href === '/lista-utiles'}
+              <div class="relative" data-utils-menu>
+                <button
+                  on:click={() => isUtilsMenuOpen = !isUtilsMenuOpen}
+                  on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && (isUtilsMenuOpen = !isUtilsMenuOpen, e.preventDefault())}
+                  class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200 {isActive(item.href) 
+                    ? 'border-indigo-500 text-gray-900' 
+                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}"
+                  aria-expanded={isUtilsMenuOpen}
+                  aria-haspopup="true"
+                >
+                  {item.name}
+                  <span class="ml-1 px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800">
+                    Nuevo
+                  </span>
+                  <svg class="ml-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+
+                {#if isUtilsMenuOpen}
+                  <div class="origin-top-left absolute left-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                    <div class="py-1" role="none">
+                      <a
+                        href="/lista-utiles"
+                        class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100"
+                        role="menuitem"
+                        tabindex="-1"
+                      >
+                        <div class="flex items-center">
+                          <svg class="mr-2 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          Escanear lista
+                        </div>
+                        <p class="text-xs text-gray-500 ml-7 mt-1">Sube una imagen o PDF de tu lista</p>
+                      </a>
+                      <a
+                        href="/lista-utiles/crear"
+                        class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100"
+                        role="menuitem"
+                        tabindex="-1"
+                      >
+                        <div class="flex items-center">
+                          <svg class="mr-2 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Crear lista manual
+                        </div>
+                        <p class="text-xs text-gray-500 ml-7 mt-1">Agrega productos uno por uno</p>
+                      </a>
+                      <a
+                        href="/lista-utiles/ejemplo"
+                        class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100"
+                        role="menuitem"
+                        tabindex="-1"
+                      >
+                        <div class="flex items-center">
+                          <svg class="mr-2 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Ver lista de ejemplo
+                        </div>
+                        <p class="text-xs text-gray-500 ml-7 mt-1">Mira cómo funciona</p>
+                      </a>
+                    </div>
+                  </div>
+                {/if}
+              </div>
+            {:else}
+              <a
+                href={item.href}
+                on:keydown={(e) => handleKeyDown(e, item.href)}
+                class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors duration-200 {isActive(item.href) 
+                  ? 'border-indigo-500 text-gray-900' 
+                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}"
+                tabindex="0"
+                aria-current={isActive(item.href) ? 'page' : undefined}
+              >
+                {item.name}
+              </a>
+            {/if}
           {/each}
         </nav>
       </div>
       
-      <div class="flex items-center">
-        <a href="/carrito" class="p-1 rounded-full text-gray-400 hover:text-gray-500 relative">
-          <span class="sr-only">Ver carrito</span>
-          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
-          {#if $cartItemCount > 0}
-            <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-              {$cartItemCount}
-            </span>
-          {/if}
-        </a>
-        
-        <div class="ml-4 flex items-center md:ml-6">
-          <a href="/auth/login" class="text-sm font-medium text-gray-700 hover:text-gray-900">
-            Iniciar sesión
-          </a>
-          <span class="mx-2 text-gray-300">|</span>
-          <a href="/auth/register" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-            Registrarse
-          </a>
-        </div>
+      <div class="flex items-center space-x-4">
+
+        {#if user}
+          <!-- Menú de perfil -->
+          <div class="ml-4 relative" data-profile-menu>
+            <button
+              type="button"
+              class="bg-white rounded-full flex text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              id="user-menu-button"
+              on:click={() => isProfileMenuOpen = !isProfileMenuOpen}
+              on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && (isProfileMenuOpen = !isProfileMenuOpen, e.preventDefault())}
+              aria-expanded={isProfileMenuOpen}
+              aria-haspopup="true"
+            >
+              <span class="sr-only">Abrir menú de usuario</span>
+              <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
+                {user.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}
+              </div>
+            </button>
+
+            {#if isProfileMenuOpen}
+              <div 
+                class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
+                role="menu"
+                aria-orientation="vertical"
+                aria-labelledby="user-menu-button"
+                tabindex="-1"
+              >
+                <a 
+                  href="/perfil" 
+                  class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  role="menuitem"
+                  tabindex="-1"
+                  on:keydown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      window.location.href = '/perfil';
+                    }
+                  }}
+                >
+                  Mi perfil
+                </a>
+                <a 
+                  href="/mis-pedidos" 
+                  class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  role="menuitem"
+                  tabindex="-1"
+                  on:keydown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      window.location.href = '/mis-pedidos';
+                    }
+                  }}
+                >
+                  Mis pedidos
+                </a>
+                <button
+                  type="button"
+                  on:click={handleLogout}
+                  on:keydown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleLogout();
+                    }
+                  }}
+                  class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  role="menuitem"
+                  tabindex="-1"
+                >
+                  Cerrar sesión
+                </button>
+              </div>
+            {/if}
+          </div>
+        {:else}
+          <!-- Botones de inicio de sesión/registro -->
+          <div class="hidden md:flex items-center space-x-4">
+            <a 
+              href="/auth/login" 
+              class="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium"
+            >
+              Iniciar sesión
+            </a>
+            <a 
+              href="/auth/register" 
+              class="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700"
+            >
+              Registrarse
+            </a>
+          </div>
+        {/if}
       </div>
     </div>
-  </div>
+    </div> <!-- Close max-w-7xl -->
+  </div> <!-- Close relative -->
   
   <!-- Mobile menu -->
   <div class="sm:hidden">

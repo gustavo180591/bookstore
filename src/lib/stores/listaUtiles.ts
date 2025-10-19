@@ -113,8 +113,7 @@ const createListaUtilesStore = () => {
           processedAt: new Date(),
         }));
 
-        // Redirect to cart after processing
-        goto('/carrito');
+        // The component will handle the redirection based on the status
       } catch (error) {
         console.error('Error processing list:', error);
         update(state => ({
