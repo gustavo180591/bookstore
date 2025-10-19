@@ -65,7 +65,7 @@
   }
 </script>
 
-<div class="product-card border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-200">
+<a href="/producto/{product.id}" class="product-link">
   <!-- Imagen del producto -->
   <div class="aspect-w-1 aspect-h-1 bg-gray-200">
     {#if product.imageUrl}
@@ -141,7 +141,7 @@
       {/if}
     </button>
   </div>
-</div>
+</a>
 
 <style>
   .line-clamp-2 {
@@ -149,6 +149,12 @@
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+
+  .product-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
   }
 
   .product-card {

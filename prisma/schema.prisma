@@ -128,10 +128,11 @@ model Product {
   isActive    Boolean          @default(true)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
-  budgetItems BudgetItem[]
   cartItems   CartItem[]
   orderItems  OrderItem[]
+  budgetItems BudgetItem[]
   schoolLists SchoolListItem[]
+  bundleProducts BundleProduct[]
 
   @@index([name])
   @@index([category])
@@ -151,9 +152,10 @@ model Order {
   updatedAt         DateTime        @updatedAt
   shippingAddress   Address?        @relation("OrderAddress")
   user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items             OrderItem[]
-  payments          Payment[]
-  budgets           Budget[]        @relation("BudgetToOrder")
+  items     OrderItem[]
+  payments  Payment[]
+  budgets   Budget[]        @relation("BudgetToOrder")
+  coupons   OrderCoupon[]
 
   @@index([userId])
   @@index([status])
@@ -331,15 +333,57 @@ enum AddressType {
   SHIPPING
 }
 
-enum MediaType {
-  IMAGE
-  VIDEO
-  PDF
-  OTHER
-}
-
 enum DiscountType {
   PERCENT
   FIXED_AMOUNT
   FREE_SHIPPING
+}
+
+model Bundle {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  discountType DiscountType
+  discountValue Decimal @db.Decimal(10, 2)
+  products    BundleProduct[]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+}
+
+model Coupon {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  discountType DiscountType
+  discountValue Decimal @db.Decimal(10, 2)
+  minOrderValue Decimal? @db.Decimal(10, 2)
+  maxUses     Int?
+  usedCount   Int      @default(0)
+  expiresAt   DateTime?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  orders      OrderCoupon[]
+
+  @@index([code])
+}
+
+model BundleProduct {
+  id        String @id @default(cuid())
+  bundleId  String
+  productId String
+  bundle    Bundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model OrderCoupon {
+  id       String @id @default(cuid())
+  orderId  String
+  couponId String
+  order    Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  coupon   Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, couponId])
 }

@@ -27,6 +27,26 @@ export interface ProductsResponse {
   };
 }
 
+export interface SingleProductResponse {
+  success: boolean;
+  data: Product;
+}
+
+/**
+ * Obtiene un producto específico por su ID
+ */
+export async function fetchProduct(id: string): Promise<SingleProductResponse> {
+  const url = `${API_BASE}/api/products/${id}`;
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Error al obtener producto: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
 export interface ProductsFilters {
   category?: string;
   search?: string;

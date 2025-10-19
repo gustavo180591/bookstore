@@ -1,12 +1,23 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fetchProducts, fetchCategories, type Product } from '$lib/api/products';
+  import { cartActions } from '$lib/stores/cart';
 
   // Estado simple
   let products: Product[] = [];
   let categories: string[] = [];
   let loading = true;
   let error: string | null = null;
+  let addingToCart = $state<Record<string, boolean>>({});
+  let notification = $state<{message: string, type: 'success' | 'error'} | null>(null);
+  
+  // Mostrar notificación
+  function showNotification(message: string, type: 'success' | 'error' = 'success') {
+    notification = { message, type };
+    setTimeout(() => {
+      notification = null;
+    }, 3000);
+  }
 
   // Estado para filtros
   let searchTerm = '';
@@ -96,6 +107,13 @@
   <title>Catálogo de Productos - Bookstore</title>
   <meta name="description" content="Explora nuestro catálogo de productos escolares y de oficina" />
 </svelte:head>
+
+<!-- Notificación flotante -->
+{#if notification}
+  <div class="notification {notification.type}">
+    {notification.message}
+  </div>
+{/if}
 
 <div class="app-container">
   <!-- Header -->
@@ -282,10 +300,29 @@
                   <!-- Botón de acción -->
                   <button
                     class="add-to-cart-button"
-                    disabled={product.stock === 0}
-                    onclick={() => alert(`${product.name} agregado al carrito!`)}
+                    disabled={product.stock === 0 || addingToCart[product.id]}
+                    onclick={async () => {
+                      if (product.stock === 0) return;
+                      
+                      try {
+                        addingToCart = { ...addingToCart, [product.id]: true };
+                        const result = await cartActions.addToCart(product.id, 1);
+                        if (result.success) {
+                          showNotification(`${product.name} agregado al carrito`, 'success');
+                        } else {
+                          showNotification(result.error || 'Error al agregar al carrito', 'error');
+                        }
+                      } catch (error) {
+                        console.error('Error adding to cart:', error);
+                        showNotification('Error al agregar al carrito', 'error');
+                      } finally {
+                        addingToCart = { ...addingToCart, [product.id]: false };
+                      }
+                    }}
                   >
-                    {#if product.stock === 0}
+                    {#if addingToCart[product.id]}
+                      Agregando...
+                    {:else if product.stock === 0}
                       No disponible
                     {:else}
                       Agregar al carrito
@@ -315,6 +352,39 @@
 </div>
 
 <style>
+  /* Estilos para notificaciones */
+  .notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 24px;
+    border-radius: 4px;
+    color: white;
+    font-weight: 500;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    animation: slideIn 0.3s ease-out;
+  }
+  
+  .success {
+    background-color: #10b981; /* green-500 */
+  }
+  
+  .error {
+    background-color: #ef4444; /* red-500 */
+  }
+  
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
   .app-container {
     min-height: 100vh;
     background-color: #f9fafb;

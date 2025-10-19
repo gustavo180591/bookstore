@@ -3,8 +3,9 @@
   import { cart, cartActions, cartItemCount, isCartEmpty } from '$lib/stores/cart';
   import CartItem from '$lib/components/CartItem.svelte';
 
-  let loading = true;
-  let error: string | null = null;
+  let loading = $state(true);
+  let error = $state<string | null>(null);
+  let updatingItem = $state<string | null>(null);
 
   // Cargar carrito al montar el componente
   onMount(async () => {
@@ -46,17 +47,26 @@
       return;
     }
 
-    const result = await cartActions.updateQuantity(itemId, quantity);
+    try {
+      updatingItem = itemId;
+      const result = await cartActions.updateQuantity(itemId, quantity);
 
-    if (result.needsAuth) {
-      alert(result.error || 'Debes iniciar sesión para modificar el carrito');
-      window.location.href = '/auth/login';
-      return;
-    }
+      if (result.needsAuth) {
+        alert(result.error || 'Debes iniciar sesión para modificar el carrito');
+        window.location.href = '/auth/login';
+        return;
+      }
 
-    if (!result.success) {
-      error = result.error || 'Error actualizando cantidad';
+      if (!result.success) {
+        error = result.error || 'Error actualizando cantidad';
+        setTimeout(() => error = null, 3000);
+      }
+    } catch (err) {
+      console.error('Error updating quantity:', err);
+      error = 'Error al actualizar la cantidad';
       setTimeout(() => error = null, 3000);
+    } finally {
+      updatingItem = null;
     }
   }
 
@@ -92,52 +102,64 @@
   <meta name="description" content="Revisa y gestiona los productos en tu carrito de compras" />
 </svelte:head>
 
-<div class="cart-container">
-  <!-- Header -->
-  <div class="cart-header">
-    <h1 class="cart-title">🛒 Carrito de Compras</h1>
-    <div class="cart-navigation">
-      <a href="/catalogo" class="continue-shopping-btn">
-        ← Continuar Comprando
-      </a>
-    </div>
+{#if error}
+  <div class="notification error">
+    {error}
   </div>
+{/if}
 
-  <!-- Estado de carga -->
+<div class="cart-container">
   {#if loading}
     <div class="loading-container">
-      <div class="loading-spinner"></div>
-      <span class="loading-text">Cargando carrito...</span>
+      <div class="spinner"></div>
+      <p>Cargando carrito...</p>
     </div>
-  {/if}
-
-  <!-- Estado de error -->
-  {#if error}
-    <div class="error-banner">
-      <div class="error-content">
-        <span class="error-icon">⚠️</span>
-        <span class="error-message">{error}</span>
-        <button class="error-close" onclick={() => error = null}>×</button>
+  {:else if $isCartEmpty}
+    <div class="empty-cart">
+      <div class="empty-cart-content">
+        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="empty-cart-icon">
+          <circle cx="9" cy="21" r="1"></circle>
+          <circle cx="20" cy="21" r="1"></circle>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+        </svg>
+        <h2>¡Tu carrito está vacío!</h2>
+        <p>Parece que aún no has agregado ningún producto a tu carrito.</p>
+        <a href="/catalogo" class="browse-products-btn">
+          Ver productos disponibles
+        </a>
       </div>
     </div>
-  {/if}
-
-  <!-- Carrito vacío -->
-  {#if !loading && $isCartEmpty}
-    <div class="empty-cart">
-      <div class="empty-cart-icon">🛒</div>
-      <h2 class="empty-cart-title">Tu carrito está vacío</h2>
-      <p class="empty-cart-message">
-        ¡Agrega algunos productos para comenzar tu compra!
-      </p>
-      <a href="/catalogo" class="start-shopping-btn">
-        Explorar Productos
-      </a>
+  {:else}
+    <!-- Header -->
+    <div class="cart-header">
+      <h1 class="cart-title">🛒 Carrito de Compras</h1>
+      <div class="cart-navigation">
+        <a href="/catalogo" class="continue-shopping-btn">
+          ← Continuar Comprando
+        </a>
+      </div>
     </div>
-  {/if}
 
-  <!-- Carrito con productos -->
-  {#if !loading && !$isCartEmpty}
+    <!-- Estado de carga -->
+    {#if loading}
+      <div class="loading-container">
+        <div class="loading-spinner"></div>
+        <span class="loading-text">Cargando carrito...</span>
+      </div>
+    {/if}
+
+    <!-- Estado de error -->
+    {#if error}
+      <div class="error-banner">
+        <div class="error-content">
+          <span class="error-icon">⚠️</span>
+          <span class="error-message">{error}</span>
+          <button class="error-close" onclick={() => error = null}>×</button>
+        </div>
+      </div>
+    {/if}
+
+    <!-- Carrito con productos -->
     <div class="cart-content">
       <!-- Lista de productos -->
       <div class="cart-items">
@@ -168,38 +190,46 @@
 
       <!-- Resumen del pedido -->
       <div class="cart-summary">
-        <h3 class="summary-title">Resumen del Pedido</h3>
-
-        <div class="summary-breakdown">
-          <div class="summary-row">
-            <span class="summary-label">Subtotal:</span>
-            <span class="summary-value">${cartActions.formatPrice($cart.totals.subtotal)}</span>
+        <h2 class="summary-title">Resumen del Pedido</h2>
+        <div class="summary-rows">
+          <div>
+            <span>Subtotal ({$cart.items.reduce((acc, item) => acc + item.quantity, 0)} productos)</span>
+            <span>${$cart.totals.subtotal}</span>
           </div>
-
-          <div class="summary-row">
-            <span class="summary-label">IVA (21%):</span>
-            <span class="summary-value">${cartActions.formatPrice($cart.totals.tax)}</span>
+          <div>
+            <span>Envío</span>
+            <span>Se calcula al finalizar</span>
           </div>
-
-          <div class="summary-row total-row">
-            <span class="summary-label">Total:</span>
-            <span class="summary-value total-value">${cartActions.formatPrice($cart.totals.total)}</span>
+          <div class="summary-row total">
+            <span>Total</span>
+            <span>${$cart.totals.total}</span>
           </div>
         </div>
-
+        <div class="summary-footer">
+          <p>Envío gratuito a todo el país</p>
+          <p>Pago seguro con múltiples opciones</p>
+        </div>
         <div class="summary-actions">
-          <button class="checkout-btn" onclick={handleProceedToCheckout}>
-            Proceder al Pago
+          <button
+            class="checkout-btn"
+            disabled={$isCartEmpty || loading}
+            onclick={handleProceedToCheckout}
+          >
+            {#if loading}
+              Procesando...
+            {:else}
+              Proceder al Pago
+            {/if}
           </button>
-
-          <div class="summary-info">
-            <p class="shipping-info">
-              🚚 Envío gratis en compras mayores a $15.000
-            </p>
-            <p class="payment-info">
-              💳 Aceptamos tarjetas, transferencias y Mercado Pago
-            </p>
-          </div>
+          {#if !$isCartEmpty}
+            <button
+              class="clear-cart-btn"
+              disabled={loading}
+              onclick={handleClearCart}
+            >
+              Vaciar Carrito
+            </button>
+          {/if}
         </div>
       </div>
     </div>
@@ -207,6 +237,35 @@
 </div>
 
 <style>
+  /* Estilos de notificación */
+  .notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 24px;
+    border-radius: 4px;
+    color: white;
+    font-weight: 500;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    animation: slideIn 0.3s ease-out;
+  }
+  
+  .error {
+    background-color: #ef4444;
+  }
+  
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
   .cart-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -310,29 +369,45 @@
   }
 
   .empty-cart {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 50vh;
+    padding: 2rem;
     text-align: center;
-    padding: 4rem 2rem;
+  }
+
+  .empty-cart-content {
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    background-color: #f9fafb;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 
   .empty-cart-icon {
-    font-size: 4rem;
+    width: 64px;
+    height: 64px;
     margin-bottom: 1.5rem;
+    color: #9ca3af;
   }
 
-  .empty-cart-title {
+  .empty-cart h2 {
+    font-size: 1.5rem;
     font-size: 1.875rem;
     font-weight: 600;
     color: #1f2937;
     margin-bottom: 1rem;
   }
 
-  .empty-cart-message {
+  .empty-cart p {
     color: #6b7280;
     font-size: 1.1rem;
     margin-bottom: 2rem;
   }
 
-  .start-shopping-btn {
+  .empty-cart a {
     display: inline-block;
     padding: 1rem 2rem;
     background-color: #3b82f6;
@@ -343,7 +418,7 @@
     transition: background-color 0.2s ease;
   }
 
-  .start-shopping-btn:hover {
+  .empty-cart a:hover {
     background-color: #2563eb;
   }
 
@@ -408,7 +483,7 @@
     transition: background-color 0.2s ease;
   }
 
-  .clear-cart-btn:hover {
+  .clear-cart-btn:hover:not(:disabled) {
     background-color: #dc2626;
   }
 
@@ -427,40 +502,36 @@
     margin-bottom: 1.5rem;
   }
 
-  .summary-breakdown {
+  .summary-rows {
     margin-bottom: 2rem;
   }
 
-  .summary-row {
+  .summary-rows > div {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 0.75rem 0;
   }
 
-  .summary-row:not(:last-child) {
+  .summary-rows > div:not(:last-child) {
     border-bottom: 1px solid #f3f4f6;
   }
 
-  .summary-label {
+  .summary-rows span:first-child {
     color: #6b7280;
     font-size: 0.9rem;
   }
 
-  .summary-value {
+  .summary-rows span:last-child {
     font-weight: 500;
     color: #1f2937;
   }
 
-  .total-row {
+  .summary-rows .total {
     font-size: 1.125rem;
     font-weight: 600;
   }
 
-  .total-value {
-    color: #059669;
-    font-size: 1.25rem;
-  }
 
   .summary-actions {
     display: flex;
@@ -485,7 +556,7 @@
     background-color: #059669;
   }
 
-  .summary-info {
+  .summary-footer {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
@@ -493,7 +564,7 @@
     color: #6b7280;
   }
 
-  .shipping-info, .payment-info {
+  .summary-footer p {
     margin: 0;
   }
 
@@ -532,7 +603,7 @@
       font-size: 3rem;
     }
 
-    .empty-cart-title {
+    .empty-cart h2 {
       font-size: 1.5rem;
     }
   }

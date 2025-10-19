@@ -4,6 +4,8 @@
 	import { QueryClientProvider } from '@tanstack/svelte-query';
 	import { getQueryClient } from '$lib/queryClient';
 	import { onMount } from 'svelte';
+	import Navigation from '$lib/components/Navigation.svelte';
+	import Footer from '$lib/components/footer.svelte';
 
 	let { children } = $props();
 
@@ -19,10 +21,20 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
 <QueryClientProvider client={queryClient}>
-	{@render children?.()}
+	<div class="min-h-screen flex flex-col">
+		<Navigation />
+		<main class="flex-grow">
+			{@render children?.()}
+		</main>
+		<Footer />
+	</div>
 </QueryClientProvider>
 
 <style>
