@@ -6,10 +6,10 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
 
-  // Redirigir al carrito si ya hay una lista procesada
-  $: if ($listaUtilesStore.status === 'processed' && $page.url.pathname !== '/carrito') {
-    goto('/carrito');
-  }
+  // No redirigir automáticamente al carrito
+  // $: if ($listaUtilesStore.status === 'processed' && $page.url.pathname !== '/carrito') {
+  //   goto('/carrito');
+  // }
 </script>
 
 <svelte:head>
@@ -32,14 +32,23 @@
   </div>
 
   <ListaUtilesUpload />
-  
+
+  <!-- Resumen eliminado según solicitud del usuario -->
+  <!-- <ListaUtilesSummary /> -->
+
   {#if $listaUtilesStore.status === 'processing'}
     <div class="mt-8 text-center">
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
       <p class="text-gray-600">Procesando tu lista de útiles...</p>
     </div>
   {/if}
-  
+
+  {#if $listaUtilesStore.status === 'processed'}
+    <div class="mt-8">
+      <ListaUtilesResults />
+    </div>
+  {/if}
+
   {#if $listaUtilesStore.status === 'error'}
     <div class="mt-8 bg-red-50 border-l-4 border-red-500 p-4">
       <div class="flex">
