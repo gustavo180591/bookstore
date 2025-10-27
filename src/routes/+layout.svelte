@@ -13,6 +13,20 @@
 
 	// Limpiar queries al desmontar (importante para SSR)
 	onMount(() => {
+		// Inicializar DevTools solo en desarrollo
+		if (import.meta.env.DEV) {
+			try {
+				// @ts-ignore - Ignorar errores de TypeScript para esta importación dinámica
+				import('@tanstack/svelte-query-devtools').then((module: any) => {
+					if (module && typeof module.devtools === 'function') {
+						module.devtools(document.body);
+					}
+				});
+			} catch (error) {
+				console.warn('TanStack Query DevTools no disponible:', error);
+			}
+		}
+
 		return () => {
 			queryClient.clear();
 		};

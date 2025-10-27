@@ -2,10 +2,22 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals }) => {
-  // En una aplicación real, verificarías la sesión del usuario
-  // Por ahora, devolvemos un usuario de ejemplo o null si no hay sesión
+  // Verificar si hay un usuario autenticado en locals
+  const user = locals.user;
+
+  if (user) {
+    // Remover información sensible antes de devolver
+    const userWithoutPassword = { ...user };
+
+    return json({
+      user: userWithoutPassword,
+      isLoggedIn: true
+    });
+  }
+
+  // Usuario no autenticado
   return json({
-    user: null, // Cambiar a un objeto de usuario válido cuando se implemente la autenticación
+    user: null,
     isLoggedIn: false
   });
 };

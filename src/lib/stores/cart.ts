@@ -1,4 +1,14 @@
 import { writable, derived } from 'svelte/store';
+import { browser } from '$app/environment';
+
+// 15 minutes in milliseconds
+const RESERVATION_DURATION = 15 * 60 * 1000;
+
+interface Reservation {
+  productId: string;
+  quantity: number;
+  expiresAt: number;
+}
 
 export interface CartItem {
   id: string;
@@ -43,7 +53,54 @@ const initialCart: Cart = {
 };
 
 // Store principal del carrito
-export const cart = writable<Cart>(initialCart);
+export const cart = writable<Cart>(
+  browser ? JSON.parse(localStorage.getItem('cart') || JSON.stringify(initialCart)) : initialCart
+);
+
+// Persist cart to localStorage
+if (browser) {
+  cart.subscribe(($cart) => {
+    localStorage.setItem('cart', JSON.stringify($cart));
+  });
+}
+
+// Store para las reservas de stock
+export const stockReservations = writable<Record<string, Reservation>>(
+  browser ? JSON.parse(localStorage.getItem('stockReservations') || '{}') : {}
+);
+
+// Persist stock reservations
+if (browser) {
+  stockReservations.subscribe(($reservations) => {
+    localStorage.setItem('stockReservations', JSON.stringify($reservations));
+  });
+}
+
+// Limpiar reservas expiradas
+const cleanupExpiredReservations = () => {
+  stockReservations.update(($reservations) => {
+    const now = Date.now();
+    const validReservations: Record<string, Reservation> = {};
+    
+    for (const [key, res] of Object.entries($reservations)) {
+      if (res.expiresAt > now) {
+        validReservations[key] = res;
+      } else {
+        // Liberar stock cuando expira la reserva
+        console.log(`Reserva expirada para producto ${res.productId}`);
+      }
+    }
+    
+    return validReservations;
+  });
+};
+
+// Verificar reservas al cargar
+if (browser) {
+  cleanupExpiredReservations();
+  // Verificar cada minuto
+  setInterval(cleanupExpiredReservations, 60000);
+}
 
 // Store derivado para obtener el número total de items
 export const cartItemCount = derived(cart, ($cart) => {
@@ -64,8 +121,8 @@ export const cartActions = {
       const data = await response.json();
 
       if (response.status === 401) {
-        // Usuario no autenticado
-        cart.set(initialCart);
+        // Usuario no autenticado - no intentar recargar
+        console.log('Usuario no autenticado, usando carrito local');
         return { success: false, needsAuth: true };
       }
 
@@ -74,20 +131,75 @@ export const cartActions = {
         return { success: true };
       } else {
         console.error('Error cargando carrito:', data.error);
-        cart.set(initialCart);
+        // Mantener carrito local en caso de error
         return { success: false, error: data.error };
       }
     } catch (error) {
       console.error('Error cargando carrito:', error);
-      cart.set(initialCart);
-      return { success: false, error: 'Error interno del servidor' };
+      // No resetear el carrito si hay error de conexión
+      return { success: false, error: 'Error de conexión' };
+    }
+  },
+
+  // Reservar stock temporalmente
+  async reserveStock(productId: string, quantity: number): Promise<boolean> {
+    try {
+      const response = await fetch('/api/cart/reserve-stock', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ productId, quantity }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Error al reservar stock');
+      }
+
+      // Guardar la reserva localmente
+      const reservation: Reservation = {
+        productId,
+        quantity,
+        expiresAt: Date.now() + RESERVATION_DURATION
+      };
+
+      stockReservations.update(($reservations) => ({
+        ...$reservations,
+        [`${productId}-${Date.now()}`]: reservation
+      }));
+
+      return true;
+    } catch (error) {
+      console.error('Error reservando stock:', error);
+      throw error;
+    }
+  },
+
+  // Liberar stock reservado
+  async releaseStock(productId: string, quantity: number): Promise<void> {
+    try {
+      const response = await fetch('/api/cart/release-stock', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ productId, quantity }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('Error liberando stock:', error);
+      }
+    } catch (error) {
+      console.error('Error liberando stock:', error);
     }
   },
 
   // Agregar producto al carrito (requiere autenticación)
   async addToCart(productId: string, quantity: number = 1) {
     try {
-      const response = await fetch('/api/cart/items', {
+      const response = await fetch('/api/cart', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

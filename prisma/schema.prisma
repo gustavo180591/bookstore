@@ -27,6 +27,7 @@ model User {
   orders           Order[]
   payments         Payment[]
   sessions         Session[]
+  createdLists     SchoolList[]        @relation("CreatedLists")
 
   @@index([email])
   @@index([documentNumber])
@@ -48,26 +49,38 @@ model Institution {
   cuit        String?             @db.VarChar(20)
   phone       String?             @db.VarChar(30)
   email       String?             @db.VarChar(120)
-  addressId   String?             @unique
+  address     String?             @db.VarChar(255)
+  city        String?             @db.VarChar(100)
+  province    String?             @db.VarChar(100)
+  isActive    Boolean             @default(true)
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
-  address     Address?            @relation("InstitutionAddress")
-  budgets     Budget[]
+  addressId   String?             @unique
   members     InstitutionMember[]
   schoolLists SchoolList[]
+  budgets     Budget[]
+  addressRef  Address?            @relation("InstitutionAddress", fields: [addressId], references: [id])
 
   @@index([name])
+  @@index([cuit])
+  @@index([email])
+  @@index([isActive])
 }
 
 model InstitutionMember {
-  id            String      @id @default(cuid())
-  institutionId String
+  id            String               @id @default(cuid())
   userId        String
-  roleLabel     String?     @db.VarChar(80)
-  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institutionId String
+  role          InstitutionMemberRole @default(MEMBER)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 
-  @@unique([institutionId, userId])
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, institutionId])
+  @@index([institutionId])
+  @@index([role])
 }
 
 model Address {
@@ -86,34 +99,12 @@ model Address {
   province      ProvinceAR
   postalCode    String       @db.VarChar(10)
   extraInfo     String?      @db.VarChar(255)
-  institution   Institution? @relation("InstitutionAddress", fields: [institutionId], references: [id])
+  institution   Institution? @relation("InstitutionAddress")
   order         Order?       @relation("OrderAddress", fields: [orderId], references: [id])
   user          User?        @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([institutionId])
-}
-
-model Cart {
-  id        String     @id @default(cuid())
-  userId    String
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items     CartItem[]
-
-  @@index([userId])
-}
-
-model CartItem {
-  id        String  @id @default(cuid())
-  cartId    String
-  productId String
-  quantity  Int     @default(1)
-  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@index([cartId])
 }
 
 model Product {
@@ -133,9 +124,53 @@ model Product {
   budgetItems BudgetItem[]
   schoolLists SchoolListItem[]
   bundleProducts BundleProduct[]
+  stockReservations StockReservation[]
 
   @@index([name])
   @@index([category])
+  @@index([sku])
+  @@index([isActive])
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  stockReservations StockReservation[]
+
+  @@index([userId])
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cartId    String
+  productId String
+  quantity  Int     @default(1)
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([cartId])
+  @@index([productId])
+}
+
+model StockReservation {
+  id        String   @id @default(cuid())
+  cartId    String
+  productId String
+  quantity  Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([cartId])
+  @@index([productId])
+  @@index([expiresAt])
 }
 
 model Order {
@@ -152,13 +187,14 @@ model Order {
   updatedAt         DateTime        @updatedAt
   shippingAddress   Address?        @relation("OrderAddress")
   user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items     OrderItem[]
-  payments  Payment[]
-  budgets   Budget[]        @relation("BudgetToOrder")
-  coupons   OrderCoupon[]
+  items             OrderItem[]
+  payments          Payment[]
+  budgets           Budget[]        @relation("BudgetToOrder")
+  coupons           OrderCoupon[]
 
   @@index([userId])
   @@index([status])
+  @@index([createdAt])
 }
 
 model OrderItem {
@@ -171,6 +207,7 @@ model OrderItem {
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+  @@index([productId])
 }
 
 model Payment {
@@ -191,6 +228,7 @@ model Payment {
   @@index([orderId])
   @@index([userId])
   @@index([status])
+  @@index([externalId])
 }
 
 model Budget {
@@ -211,6 +249,7 @@ model Budget {
 
   @@index([userId])
   @@index([institutionId])
+  @@index([status])
 }
 
 model BudgetItem {
@@ -223,32 +262,128 @@ model BudgetItem {
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([budgetId])
+  @@index([productId])
 }
 
 model SchoolList {
-  id            String           @id @default(cuid())
-  institutionId String
+  id            String          @id @default(cuid())
   name          String
-  grade         String?
-  year          Int
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  institution   Institution      @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  description   String?
+  grade         String
+  institutionId String
+  createdById   String
+  isPublic      Boolean         @default(false)
+  status        SchoolListStatus @default(DRAFT)
+  notes         String?         @db.Text
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  // Relations
+  institution   Institution     @relation(fields: [institutionId], references: [id])
+  createdBy     User            @relation("CreatedLists", fields: [createdById], references: [id])
   items         SchoolListItem[]
 
   @@index([institutionId])
+  @@index([createdById])
+  @@index([status])
+  @@index([grade])
+  @@index([isPublic])
 }
 
 model SchoolListItem {
   id           String     @id @default(cuid())
   schoolListId String
-  productId    String
-  quantity     Int
-  notes        String?
-  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId    String?
+  name         String
+  quantity     Int        @default(1)
+  notes        String?    @db.Text
+  sortOrder    Int        @default(0)
+  isOptional   Boolean    @default(false)
+  status       ItemStatus @default(PENDING)
+  price        Decimal?   @db.Decimal(10, 2)
+
+  // Relations
   schoolList   SchoolList @relation(fields: [schoolListId], references: [id], onDelete: Cascade)
+  product      Product?   @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([schoolListId])
+  @@index([productId])
+  @@index([status])
+  @@index([sortOrder])
+}
+
+model Bundle {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  discountType DiscountType
+  discountValue Decimal @db.Decimal(10, 2)
+  products    BundleProduct[]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+  @@index([isActive])
+}
+
+model BundleProduct {
+  id        String @id @default(cuid())
+  bundleId  String
+  productId String
+  bundle    Bundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([bundleId, productId])
+}
+
+model Coupon {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  discountType DiscountType
+  discountValue Decimal @db.Decimal(10, 2)
+  minOrderValue Decimal? @db.Decimal(10, 2)
+  maxUses     Int?
+  usedCount   Int      @default(0)
+  expiresAt   DateTime?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  orders      OrderCoupon[]
+
+  @@index([code])
+  @@index([isActive])
+  @@index([expiresAt])
+}
+
+model OrderCoupon {
+  id       String @id @default(cuid())
+  orderId  String
+  couponId String
+  order    Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  coupon   Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, couponId])
+}
+
+// Enums
+enum InstitutionMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum SchoolListStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ItemStatus {
+  PENDING     // Item pendiente de búsqueda
+  FOUND       // Item encontrado en el inventario
+  NOT_FOUND   // Item no encontrado
+  SUBSTITUTED // Item reemplazado por uno similar
 }
 
 enum Role {
@@ -337,53 +472,4 @@ enum DiscountType {
   PERCENT
   FIXED_AMOUNT
   FREE_SHIPPING
-}
-
-model Bundle {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  discountType DiscountType
-  discountValue Decimal @db.Decimal(10, 2)
-  products    BundleProduct[]
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([name])
-}
-
-model Coupon {
-  id          String   @id @default(cuid())
-  code        String   @unique
-  discountType DiscountType
-  discountValue Decimal @db.Decimal(10, 2)
-  minOrderValue Decimal? @db.Decimal(10, 2)
-  maxUses     Int?
-  usedCount   Int      @default(0)
-  expiresAt   DateTime?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  orders      OrderCoupon[]
-
-  @@index([code])
-}
-
-model BundleProduct {
-  id        String @id @default(cuid())
-  bundleId  String
-  productId String
-  bundle    Bundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-}
-
-model OrderCoupon {
-  id       String @id @default(cuid())
-  orderId  String
-  couponId String
-  order    Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  coupon   Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
-
-  @@unique([orderId, couponId])
 }

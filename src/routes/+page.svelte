@@ -72,6 +72,51 @@
     </div>
   </section>
 
+  <!-- Escaneo de Listas Escolares -->
+  <section class="scan-section">
+    <div class="scan-container">
+      <div class="scan-content">
+        <div class="scan-text">
+          <div class="scan-badge">✨ Nuevo</div>
+          <h2 class="scan-title">Escanea tu Lista de Útiles</h2>
+          <p class="scan-description">
+            Sube una foto o PDF de tu lista escolar y nuestro sistema inteligente reconocerá automáticamente los productos.
+            Obtén un presupuesto personalizado al instante.
+          </p>
+          <div class="scan-features">
+            <div class="scan-feature">
+              <span class="scan-feature-icon">📷</span>
+              <span>Sube imagen o PDF</span>
+            </div>
+            <div class="scan-feature">
+              <span class="scan-feature-icon">🤖</span>
+              <span>Reconocimiento automático</span>
+            </div>
+            <div class="scan-feature">
+              <span class="scan-feature-icon">💰</span>
+              <span>Presupuesto instantáneo</span>
+            </div>
+          </div>
+          <a href="/lista-utiles" class="scan-button">
+            🚀 Comenzar a escanear
+          </a>
+        </div>
+        <div class="scan-visual">
+          <div class="scan-phone">
+            <div class="scan-screen">
+              <div class="scan-demo">
+                <div class="demo-item">📚 Cuaderno A4</div>
+                <div class="demo-item">✏️ Lápiz HB</div>
+                <div class="demo-item">🖊️ Bolígrafo</div>
+                <div class="demo-total">💰 Total: $450</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Características -->
   <section class="features">
     <div class="features-container">
@@ -846,5 +891,157 @@
       grid-template-columns: 1fr;
       text-align: center;
     }
+  }
+
+  /* Responsive para sección de escaneo */
+  @media (max-width: 768px) {
+    .scan-content {
+      grid-template-columns: 1fr;
+      text-align: center;
+      gap: 2rem;
+    }
+
+    .scan-title {
+      font-size: 2rem;
+    }
+
+    .scan-phone {
+      width: 200px;
+      height: 350px;
+    }
+  }
+
+  /* Sección de Escaneo */
+  .scan-section {
+    padding: 4rem 0;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  }
+
+  .scan-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+
+  .scan-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    align-items: center;
+  }
+
+  .scan-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 2rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+
+  .scan-title {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #2d3748;
+    margin-bottom: 1rem;
+    line-height: 1.2;
+  }
+
+  .scan-description {
+    font-size: 1.1rem;
+    color: #718096;
+    margin-bottom: 2rem;
+    line-height: 1.6;
+  }
+
+  .scan-features {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .scan-feature {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1rem;
+    color: #4a5568;
+  }
+
+  .scan-feature-icon {
+    font-size: 1.25rem;
+  }
+
+  .scan-button {
+    display: inline-block;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  }
+
+  .scan-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+  }
+
+  .scan-visual {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .scan-phone {
+    width: 280px;
+    height: 500px;
+    background: #2d3748;
+    border-radius: 2rem;
+    padding: 0.5rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  }
+
+  .scan-screen {
+    width: 100%;
+    height: 100%;
+    background: white;
+    border-radius: 1.5rem;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .scan-demo {
+    width: 100%;
+    text-align: center;
+  }
+
+  .demo-item {
+    background: #f8fafc;
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+    color: #4a5568;
+    border-left: 3px solid #667eea;
+  }
+
+  .demo-total {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem;
+    margin-top: 1rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 1rem;
   }
 </style>

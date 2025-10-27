@@ -138,8 +138,8 @@
       <div class="demo-credentials">
         <p class="demo-title">🔑 Credenciales de prueba:</p>
         <div class="demo-cred">
-          <strong>Email:</strong> test@example.com<br>
-          <strong>Contraseña:</strong> password123
+          <strong>Email:</strong> test@bookstore.com<br>
+          <strong>Contraseña:</strong> password
         </div>
       </div>
     </div>
