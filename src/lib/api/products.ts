@@ -94,3 +94,20 @@ export async function fetchCategories(): Promise<string[]> {
     return [];
   }
 }
+
+/**
+ * Elimina un producto por su ID
+ */
+export async function deleteProduct(id: string): Promise<{ success: boolean }> {
+  const url = `${API_BASE}/api/products/${id}`;
+  
+  const response = await fetch(url, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error al eliminar el producto: ${response.statusText}`);
+  }
+
+  return response.json();
+}

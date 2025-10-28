@@ -29,7 +29,7 @@
     <div class="mb-6 border p-4 rounded">
         <h2 class="font-semibold">Contacto por WhatsApp</h2>
         <p>Envíanos un mensaje directo: +1234567890</p>
-        <a href="https://wa.me/1234567890" class="bg-green-500 text-white px-4 py-2 rounded">Abrir WhatsApp</a>
+        <a href="https://wa.me/1234567890" target="_blank" rel="noopener noreferrer" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors">Abrir WhatsApp</a>
     </div>
 
     <!-- Tickets -->

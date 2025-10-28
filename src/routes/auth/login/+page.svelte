@@ -10,7 +10,7 @@
   // Obtener URL de redirección
   onMount(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    redirectTo = urlParams.get('redirect') || '/catalogo';
+    redirectTo = urlParams.get('redirect') || 'http://localhost:5174/';
   });
 
   async function handleLogin(event: Event) {
@@ -36,8 +36,7 @@
       const data = await response.json();
 
       if (data.success) {
-        // Login exitoso, redirigir
-        alert('¡Inicio de sesión exitoso!');
+        // Redirigir al usuario después de inicio de sesión exitoso
         window.location.href = redirectTo;
       } else {
         error = data.error || 'Error al iniciar sesión';
