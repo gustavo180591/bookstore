@@ -1,15 +1,65 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
+  import type { PageData } from './$types';
   import { fetchProducts, fetchCategories, type Product } from '$lib/api/products';
   import { cartActions } from '$lib/stores/cart';
+  import { page } from '$app/stores';
+  import { enhance } from '$app/forms';
+  import { goto } from '$app/navigation';
+  
+  // Función para validar URLs
+  function isValidUrl(string: string | undefined | null): boolean {
+    if (!string) return false;
+    try {
+      const url = new URL(string);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch (_) {
+      return false;
+    }
+  }
+  
+  // Función para manejar errores de carga de imagen
+  function handleImageError(img: HTMLImageElement) {
+    const placeholder = img.nextElementSibling as HTMLElement;
+    if (placeholder && placeholder.classList.contains('product-placeholder')) {
+      img.style.display = 'none';
+      placeholder.style.display = 'flex';
+    }
+  }
 
-  // Estado simple
-  let products: Product[] = [];
-  let categories: string[] = [];
-  let loading = true;
-  let error: string | null = null;
+  // Define user type
+  interface User {
+    role: 'ADMIN' | 'USER';
+    // Add other user properties as needed
+  }
+
+  // State with $state for reactivity
+  let products = $state<Product[]>([]);
+  let categories = $state<string[]>([]);
+  let loading = $state(true);
+  let loadingTimedOut = $state(false);
+  let error = $state<string | null>(null);
   let addingToCart = $state<Record<string, boolean>>({});
   let notification = $state<{message: string, type: 'success' | 'error'} | null>(null);
+  let isAdmin = $state(false);
+  let searchTerm = $state('');
+  let selectedCategory = $state('');
+  
+  // Timeout para el estado de carga
+  const loadingTimeout = setTimeout(() => {
+    if (loading) {
+      loadingTimedOut = true;
+    }
+  }, 3000);
+  
+  // Limpiar el timeout cuando el componente se desmonte
+  onDestroy(() => clearTimeout(loadingTimeout));
+
+  // Verificar si el usuario es administrador
+  $effect(() => {
+    const data = $page.data as { user?: User };
+    isAdmin = data?.user?.role === 'ADMIN';
+  });
   
   // Mostrar notificación
   function showNotification(message: string, type: 'success' | 'error' = 'success') {
@@ -19,9 +69,6 @@
     }, 3000);
   }
 
-  // Estado para filtros
-  let searchTerm = '';
-  let selectedCategory = '';
 
   // Cargar datos iniciales
   onMount(async () => {
@@ -115,23 +162,32 @@
   </div>
 {/if}
 
-<div class="app-container">
+<div class="min-h-screen bg-gray-50">
   <!-- Header -->
-  <header class="header">
-    <div class="header-content">
-      <h1 class="title">📚 Catálogo de Productos</h1>
-      <a href="/carrito" class="cart-link">
-        🛒 Carrito
-      </a>
+  <header class="bg-white shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
+      <h1 class="text-2xl font-bold text-gray-900">📚 Catálogo de Productos</h1>
+      {#if isAdmin}
+        <a 
+          href="/admin/productos/nuevo"
+          class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md border border-transparent shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          aria-label="Agregar producto"
+        >
+          <svg class="mr-2 -ml-1 w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+          </svg>
+          Agregar producto
+        </a>
+      {/if}
     </div>
   </header>
 
-  <div class="main-container">
-    <div class="content-grid">
+  <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-4">
       <!-- Sidebar con filtros -->
-      <aside class="sidebar">
-        <div class="filters-card">
-          <h3 class="filters-title">🔍 Filtros</h3>
+      <aside class="lg:col-span-1">
+        <div class="bg-white p-6 rounded-lg shadow-sm">
+          <h3 class="text-lg font-medium text-gray-900 mb-4">🔍 Filtros</h3>
 
           <!-- Búsqueda -->
           <div class="filter-group">
@@ -180,12 +236,35 @@
       </aside>
 
       <!-- Contenido principal -->
-      <main class="main-content">
-        <!-- Loading state -->
-        {#if loading}
-          <div class="loading-container">
-            <div class="spinner"></div>
-            <span class="loading-text">Cargando productos...</span>
+      <main class="lg:col-span-3">
+        <!-- Empty state - shown immediately while loading or when no products -->
+        {#if (loading || products.length === 0) && !error}
+          <div class="bg-white p-8 rounded-lg shadow-sm text-center">
+            <div class="max-w-md mx-auto">
+              <h3 class="text-2xl font-bold text-gray-900 mb-2">
+                {loading && !loadingTimedOut ? 'Cargando catálogo...' : 'No hay productos disponibles'}
+              </h3>
+              {#if !loading || loadingTimedOut}
+                <p class="text-gray-600 mb-6">
+                  {loadingTimedOut 
+                    ? 'El catálogo está tardando en cargar. ' + (!isAdmin ? 'Por favor, vuelve a intentarlo más tarde.' : '')
+                    : 'Actualmente no hay productos disponibles en el catálogo.' + (!isAdmin ? ' Por favor, vuelve a intentarlo más tarde.' : '')
+                  }
+                </p>
+              {/if}
+              {#if isAdmin}
+                <a 
+                  href="/admin/productos/nuevo"
+                  class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors {loading ? 'opacity-75' : ''}"
+                  class:opacity-75={loading}
+                >
+                  <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                  </svg>
+                  {loading ? 'Cargando...' : 'Agregar mi primer producto'}
+                </a>
+              {/if}
+            </div>
           </div>
         {/if}
 
@@ -240,12 +319,16 @@
               <div class="product-card">
                 <!-- Imagen del producto -->
                 <div class="product-image">
-                  {#if product.imageUrl}
+                  {#if product.imageUrl && isValidUrl(product.imageUrl)}
                     <img
                       src={product.imageUrl}
                       alt={product.name}
                       class="product-img"
+                      onerror={(e) => handleImageError(e.currentTarget as HTMLImageElement)}
                     />
+                    <div class="product-placeholder" style="display: none;">
+                      <span class="placeholder-icon">📚</span>
+                    </div>
                   {:else}
                     <div class="product-placeholder">
                       <span class="placeholder-icon">📚</span>
@@ -385,8 +468,11 @@
     }
   }
   
-  .app-container {
+  .min-h-screen {
     min-height: 100vh;
+  }
+
+  .bg-gray-50 {
     background-color: #f9fafb;
   }
 
@@ -407,9 +493,29 @@
   }
 
   .title {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #111827;
+    margin: 0;
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: #1f2937;
+  }
+
+  .create-product-btn {
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 0.375rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background-color 0.2s;
+  }
+
+  .create-product-btn:hover {
+    background-color: #2563eb;
   }
 
   .cart-link {

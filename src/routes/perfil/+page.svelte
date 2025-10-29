@@ -21,6 +21,7 @@
       const response = await fetch('/api/auth/session');
       if (response.ok) {
         user = await response.json();
+        console.log('User data:', user); // Debug log
       } else if (response.status === 401) {
         await goto('/iniciar-sesion?redirect=/perfil');
       }
@@ -86,7 +87,9 @@
   <div class="max-w-4xl mx-auto">
     <div class="bg-white shadow overflow-hidden sm:rounded-lg">
       <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-        <h1 class="text-2xl font-bold text-gray-900">Mi Perfil</h1>
+        <h1 class="text-2xl font-bold text-gray-900">
+          Mi Perfil {#if user?.role === 'ADMIN'}ADMINISTRADOR{/if}
+        </h1>
         <p class="mt-1 text-sm text-gray-500">Administra tu información personal y preferencias.</p>
       </div>
       

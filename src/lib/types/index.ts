@@ -4,7 +4,7 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  // Add other user properties as needed
+  role?: 'USER' | 'ADMIN';
 }
 
 export interface Order {

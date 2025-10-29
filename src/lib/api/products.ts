@@ -78,20 +78,42 @@ export async function fetchProducts(filters: ProductsFilters = {}): Promise<Prod
   return response.json();
 }
 
+// Categorías predefinidas
+const PREDEFINED_CATEGORIES = [
+  'Ofertas',
+  'Papelería',
+  'Artículos de Oficina',
+  'Escritura',
+  'Medición',
+  'Cuadernos',
+  'Carpetas',
+  'Arte',
+  'Adhesivos',
+  'Corte',
+  'Agendas',
+  'Pizarras',
+  'Sets para Regalar',
+  'Complementos Escolares'
+];
+
 /**
  * Obtiene categorías únicas de productos
  */
 export async function fetchCategories(): Promise<string[]> {
   try {
     const response = await fetchProducts({ limit: 1000 });
-    const categories = response.data
+    const productCategories = response.data
       .map(product => product.category)
       .filter(Boolean) as string[];
 
-    return [...new Set(categories)].sort();
+    // Combinar categorías predefinidas con las existentes y eliminar duplicados
+    const allCategories = [...new Set([...PREDEFINED_CATEGORIES, ...productCategories])];
+    
+    // Ordenar alfabéticamente
+    return allCategories.sort((a, b) => a.localeCompare(b));
   } catch (error) {
     console.error('Error obteniendo categorías:', error);
-    return [];
+    return [...PREDEFINED_CATEGORIES]; // Devolver categorías predefinidas en caso de error
   }
 }
 

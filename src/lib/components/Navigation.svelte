@@ -528,27 +528,30 @@
       <!-- Right Side Navigation (Cart & User Menu) -->
       <div class="flex items-center space-x-4">
 
-        <!-- Shopping Cart Link -->
-        <a
-          href="{SHOPPING_ROUTES.CART}"
-          class="{BUTTON_STYLES.CART}"
-          on:keydown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              window.location.href = SHOPPING_ROUTES.CART;
-            }
-          }}
-          tabindex="0"
-        >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l-2.5 5m6-5v6a2 2 0 01-2 2H9m4 0h2a2 2 0 002-2v-6"></path>
-          </svg>
-          {#if $cartItemCount > 0}
-            <span class="{FEEDBACK_STYLES.CART_BADGE}">
-              {$cartItemCount}
-            </span>
-          {/if}
-        </a>
+        <!-- Shopping Cart Link - Only show when user is logged in -->
+        {#if currentUser}
+          <a
+            href="{SHOPPING_ROUTES.CART}"
+            class="{BUTTON_STYLES.CART}"
+            on:keydown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                window.location.href = SHOPPING_ROUTES.CART;
+              }
+            }}
+            tabindex="0"
+            aria-label="Carrito de compras"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l-2.5 5m6-5v6a2 2 0 01-2 2H9m4 0h2a2 2 0 002-2v-6"></path>
+            </svg>
+            {#if $cartItemCount > 0}
+              <span class="{FEEDBACK_STYLES.CART_BADGE}">
+                {$cartItemCount}
+              </span>
+            {/if}
+          </a>
+        {/if}
 
         {#if currentUser}
           <!-- Authenticated User Menu -->
