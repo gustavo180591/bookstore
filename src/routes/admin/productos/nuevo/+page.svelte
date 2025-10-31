@@ -70,7 +70,8 @@
       goto('/admin/productos');
     } catch (error) {
       console.error('Error:', error);
-      showToast(error.message || 'Error al crear el producto', 'error');
+      const errorMessage = error instanceof Error ? error.message : 'Error al crear el producto';
+      showToast(errorMessage, 'error');
     } finally {
       loading = false;
     }

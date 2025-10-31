@@ -3,7 +3,6 @@ import prisma from '$lib/server/prisma';
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { uploadFile } from '$lib/server/services/fileService';
-import type { ProductData, ProductFormData } from '$lib/types/product';
 
 // GET /api/admin/products - List all products with pagination
 // Query params: page, limit, search, category, active
@@ -88,36 +87,55 @@ export const GET: RequestHandler = async ({ url }) => {
 // POST /api/admin/products - Create a new product
 export const POST: RequestHandler = async ({ request }) => {
   try {
-    const formData = await request.formData() as ProductFormData;
-    const data = Object.fromEntries(formData.entries());
+    // Parse form data
+    const formData = await request.formData();
     
-    const productData: Omit<ProductData, 'id' | 'createdAt' | 'updatedAt'> = {
-      name: data.name,
-      description: data.description,
-      price: parseFloat(data.price as string),
-      stock: parseInt(data.stock as string),
-      category: data.category,
-      sku: data.sku || null,
-      isActive: data.isActive !== undefined ? data.isActive === 'true' : true,
-    };
-
-    // Handle file upload if present
-    const imageFile = formData.get('imageFile') as File | null;
+    // Get form fields
+    const name = formData.get('name')?.toString();
+    const description = formData.get('description')?.toString() || '';
+    const price = parseFloat(formData.get('price')?.toString() || '0');
+    const stock = parseInt(formData.get('stock')?.toString() || '0');
+    const category = formData.get('category')?.toString() || null;
+    const sku = formData.get('sku')?.toString() || null;
+    const isActive = formData.get('isActive')?.toString() !== 'false';
+    
+    // Handle file upload
+    let imageUrl = formData.get('currentImage')?.toString() || null;
+    const imageFile = formData.get('image') as File | null;
+    
     if (imageFile && imageFile.size > 0) {
       const uploadResult = await uploadFile(imageFile);
-      if (!uploadResult.success) {
-        throw new Error(uploadResult.error || 'Error al subir la imagen');
+      if (uploadResult.success && uploadResult.path) {
+        imageUrl = uploadResult.path;
+      } else {
+        console.error('Error uploading image:', uploadResult.error);
+        throw error(500, uploadResult.error || 'Error al subir la imagen del producto');
       }
-      productData.imageUrl = uploadResult.path;
     }
 
-    const newProduct = await prisma.product.create({
-      data: productData
+    // Validate required fields
+    if (!name || !price) {
+      throw error(400, 'Nombre y precio son campos obligatorios');
+    }
+
+    // Create the product
+    const product = await prisma.product.create({
+      data: {
+        name,
+        description: description || null,
+        price,
+        stock,
+        sku,
+        category,
+        imageUrl,
+        isActive
+      }
     });
 
-    return json(newProduct, { status: 201 });
-  } catch (err: any) {
+    return json(product, { status: 201 });
+  } catch (err) {
     console.error('Error creating product:', err);
-    throw error(500, err.message || 'Error al crear el producto');
+    const errorMessage = err instanceof Error ? err.message : 'Error al crear el producto';
+    throw error(500, errorMessage);
   }
 };

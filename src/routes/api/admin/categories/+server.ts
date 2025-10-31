@@ -81,8 +81,12 @@ export const POST: RequestHandler = async ({ request }) => {
   } catch (err) {
     console.error('Error creating category:', err);
     
-    if (err.status === 400) {
-      throw err;
+    // Type guard to check if error has status property
+    if (err && typeof err === 'object' && 'status' in err) {
+      const httpError = err as { status: number };
+      if (httpError.status === 400) {
+        throw err;
+      }
     }
     
     throw error(500, 'Error al crear la categoría');
